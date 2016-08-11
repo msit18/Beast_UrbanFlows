@@ -36,6 +36,25 @@ NETS = {'vgg16': ('VGG16',
         'zf': ('ZF',
                   'ZF_faster_rcnn_final.caffemodel')}
 
+def printDetections(im, class_name, dets, thresh=0.5):
+    """Draw detected bounding boxes."""
+    inds = np.where(dets[:, -1] >= thresh)[0]
+    if len(inds) == 0:
+	return
+
+    im = im[:, :, (2, 1, 0)]
+    for i in inds:
+        bbox = dets[i, :4]
+	score = dets[i, -1]
+	
+	topLeftCoord = "({0}, {1})".format(bbox[0], bbox[1])
+	topRightCoord = "({0}, {1})".format(bbox[2], bbox[1])
+	bottomRightCoord = "({0}, {1})".format(bbox[0], bbox[3])	
+	bottomLeftCoord = "({0}, {1})".format(bbox[2], bbox[3])
+
+	print "found {4}. Score {5}. coordinates: top Left Coord: {0}, top Right Coord: {1}, bottom left coord: {2}, bottom right coord: {3}"\
+		.format(topLeftCoord, topRightCoord, bottomRightCoord, bottomLeftCoord, class_name, score)
+
 
 def vis_detections(im, class_name, dets, thresh=0.5):
     """Draw detected bounding boxes."""
@@ -96,6 +115,7 @@ def demo(net, image_name):
         keep = nms(dets, NMS_THRESH)
         dets = dets[keep, :]
 #        vis_detections(im, cls, dets, thresh=CONF_THRESH)
+        printDetections(im, cls, dets, thresh=CONF_THRESH)
 
 def parse_args():
     """Parse input arguments."""

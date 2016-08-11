@@ -1,4 +1,4 @@
-    #!/usr/bin/env python
+#!/usr/bin/env python
 
 # --------------------------------------------------------
 # Faster R-CNN
@@ -56,16 +56,11 @@ feature_params = dict( maxCorners = 500,
 def demo(net):
     """Detect object classes in an image using pre-computed object proposals."""
 
-    #cap = cv2.VideoCapture('/home/msit/py-faster-rcnn_BACK/data/demo/slavePi2_RW1600_RH1200_TT900_FR15_06_12_2016_17_34_39_833163.avi')
-    #cap = cv2.VideoCapture('/home/msit/Presentation/OpenCV/vehicle_detection_haarcascades-master/slavePi4_RW1600_RH1200_TT180_FR15_06_03_2016_13_53_54_254155.h264')
-    #cap = cv2.VideoCapture('/home/msit/Presentation/OpenCV/vehicle_detection_haarcascades-master/slavePi4_RW1600_RH1200_TT180_FR15_06_03_2016_13_53_54_254155.h264')
     cap = cv2.VideoCapture("/media/senseable-beast/beast-brain-1/Data/TrafficIntersectionVideos/slavePi2_RW1600_RH1200_TT900_FR15_06_10_2016_18_11_00_604698.h264")
 
     track_len = 10
     tracks = [] #stores center values of detected cars that pass the threshold
     rectangleTracks = [] #coordinates of all the cars that are detected (x,y,w,h) Is not the four coordinates
-    totalNumCars = 0
-    totalNumCarsInFrame = 0
     
     try:
         while (cap.isOpened()):
@@ -75,36 +70,39 @@ def demo(net):
 
             if len(tracks) > 0:
                 img0, img1 = prev_gray, frame_gray
-                print "totalNumCarsInFrame: ", totalNumCarsInFrame
-                print "tracks: ", tracks
                 p0 = np.float32([tr[-1] for tr in tracks]).reshape(-1, 1, 2)
                 print "p0: ", p0
                 p1, st, err = cv2.calcOpticalFlowPyrLK(img0, img1, p0, None, **lk_params)
                 p0r, st, err = cv2.calcOpticalFlowPyrLK(img1, img0, p1, None, **lk_params)
-                print "p0r", p0r
+#                print "p0r", p0r
                 d = abs(p0-p0r).reshape(-1, 2).max(-1) #included for robustness - calculates diff btwn calc point and backtracks it
                 good = d < 1 #returns a boolean value. This value is the threshold
+                print "good or not: ", good
                 new_tracks = []
+                #Figure out how the points are added to the array (how are they determined. Where are all these points coming from?)
                 for tr, (x, y), good_flag, (rectX, rectY, rectW, rectH) in zip(tracks, p1.reshape(-1, 2), good, rectangleTracks):
                     if not good_flag:
                         continue
                     tr.append((x, y))
-                    if len(tr) > track_len: #remove point if it exceeds the track length
-                        del tr[0]
-                    new_tracks.append(tr)
-                    cv2.circle(im_copy, (x, y), 2, (0, 255, 0), -1)
+                    print "tr: ", tr
+#                     if len(tr) > track_len: #remove point if it exceeds the track length
+#                         del tr[0]
+#                     new_tracks.append(tr)
+#                     cv2.circle(im_copy, (x, y), 2, (0, 255, 0), -1)
 
-                tracks = new_tracks
-                cv2.polylines(im_copy, [np.int32(tr) for tr in tracks], False, (0, 255, 0))
-                #draw_str(im_copy, (20, 20), 'track count: %d' % len(tracks))
-                #draw_str(im_copy, (40, 40), 'total car count: %d' % (totalNumCars))
-                #draw_str(im_copy, (20, 60), 'car count: %d' % (totalNumCarsInFrame))
+#                 #Filter out the points within the boxed areas. Keep them in the array to figure out the trajectory of the cars
+
+#                 tracks = new_tracks
+#                 cv2.polylines(im_copy, [np.int32(tr) for tr in tracks], False, (0, 255, 0))
+#                 #draw_str(im_copy, (20, 20), 'track count: %d' % len(tracks))
+#                 #draw_str(im_copy, (40, 40), 'total car count: %d' % (totalNumCars))
+#                 #draw_str(im_copy, (20, 60), 'car count: %d' % (totalNumCarsInFrame))
 
             # Detect all object classes and regress object bounds
-            timer = Timer()
-            timer.tic()
+            # timer = Timer()
+            # timer.tic()
             scores, boxes = im_detect(net, im)
-            timer.toc()
+            # timer.toc()
             # print ('Detection took {:.3f}s for '
             #        '{:d} object proposals').format(timer.total_time, boxes.shape[0])
 
@@ -123,9 +121,6 @@ def demo(net):
                 #only keep elements which pass the threshold here
                 dets = dets[keep, :]
                 if cls == "car":
-                    totalNumCarsInFrame = 0
-                    #vis_detections(im, cls, dets, thresh=CONF_THRESH)
-                    #method is vis_detections(im, class_name, dets, thresh=0.5)
                     inds = np.where(dets[:, -1] >= 0.5)[0] #Another threshold applied here, but not certain why
                     # if len(inds) == 0:
                     #     return
@@ -133,6 +128,7 @@ def demo(net):
                     im = im[:, :, (2, 1, 0)]
 
                     #Calculate center of box, and draw on image
+                    print "Number of cars in frame: ", len(inds)
                     for i in inds:
                         bbox = dets[i, :4]
                         score = dets[i, -1]
@@ -144,24 +140,25 @@ def demo(net):
                         y1 = y + h
                         cv2.rectangle(im_copy, (x,y), (x1, y1), (255, 0, 0), 3)
                         rectangleTracks.append([x,y,w,h])
-                        totalNumCarsInFrame += 1
                         
                         car_centroid = [(x+(w/2)), (y+(h/2))]
                         cv2.circle (im_copy, ( (x+(w/2)) , (y+(h/2)) ), 4, (255, 0, 0), 4)
-                        if car_centroid is not None:  
+                        if car_centroid is not None:
                             for a, b in np.float32(car_centroid).reshape(-1, 2):
+                                print "car coordinates: ({0}, {1})".format(a, b)
                                 tracks.append([(a, b)])
+                        print "Tracks: ", tracks
 
-                    cv2.imshow('rectangles', im_copy)
-                    if cv2.waitKey(1) & 0xFF == ord('q'):
-                        break
+#                    cv2.imshow('rectangles', im_copy)
+#                    if cv2.waitKey(1) & 0xFF == ord('q'):
+#                        break
 
             prev_gray = frame_gray
 
             # if cv2.waitKey(0) & 0xFF == ord('q'):
             #     break
 
-            print "take prev_gray frame"
+            print "take prev_gray frame--------------------------------------------------"
 
     finally:
         end = time.time()
@@ -218,4 +215,4 @@ if __name__ == '__main__':
     end = demo (net)
     totalRunTime = end - start
     print "total run time was: ", totalRunTime
-    cv2.destroyAllWindows()
+#    cv2.destroyAllWindows()

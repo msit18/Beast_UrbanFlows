@@ -92,7 +92,8 @@ def demo(net, image_name):
     #im_file = os.path.join(cfg.DATA_DIR, 'demo', image_name)
     # im = cv2.imread(im_file)
 
-    cap = cv2.VideoCapture('/home/msit/py-faster-rcnn_BACK/data/demo/slavePi2_RW1600_RH1200_TT900_FR15_06_12_2016_17_34_39_833163.avi')
+#    cap = cv2.VideoCapture('/home/msit/py-faster-rcnn_BACK/data/demo/slavePi2_RW1600_RH1200_TT900_FR15_06_12_2016_17_34_39_833163.avi')
+    cap = cv2.VideoCapture('/media/senseable-beast/beast-brain-1/Data/TrafficIntersectionVideos/slavePi2_RW1600_RH1200_TT900_FR15_06_13_2016_06_00_00_604652.h264')
     print cap.isOpened()
 
     print "before the while loop"
@@ -120,7 +121,8 @@ def demo(net, image_name):
             keep = nms(dets, NMS_THRESH)
             dets = dets[keep, :]
             if cls == "car":
-                vis_detections(im, cls, dets, thresh=CONF_THRESH)
+		print "car"
+#                vis_detections(im, cls, dets, thresh=CONF_THRESH)
             print "plt.showed"
 
         time.sleep(1)
