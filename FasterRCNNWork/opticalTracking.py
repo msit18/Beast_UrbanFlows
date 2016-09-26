@@ -7,7 +7,6 @@
 # Original Example Code by Ross Girshick
 
 # This code is work created by Michelle Sit
-# THIS VERSION DOES NOT USE THE OPENCV OPTICAL FLOW ALGORITHM
 # --------------------------------------------------------
 
 """
@@ -44,14 +43,13 @@ class UrbanFlows():
                            minDistance = 7,
                            blockSize = 7 )
 
-    def detectCars(self, im, im_copy, frame_gray, net, tracks, numFrames):
+#Detects cars within frame, detects corners of interest within detected car frame, outputs array
+    def detectCars(self, im, im_copy, frame_gray, net, detectedCars):
         scores, boxes = im_detect(net, im)
 
         # Visualize detections for each class
         CONF_THRESH = 0.7
         NMS_THRESH = 0.3
-
-        newDetectedCarPoints = []
 
         for cls_ind, cls in enumerate(CLASSES[1:]):
             #detect all potential elements of interest here using rcnn
@@ -71,45 +69,99 @@ class UrbanFlows():
 
                 #Calculate center of box, and draw on image. Use cvDrawBBox for cv2 (expects integers)
                 #x = bbox[0], y = bbox[1] (top left corner)
-                #x1 = bbox[2], y1 = bbox[3] (top right corner)
-                # print "Number of cars in frame: ", len(inds)
+                #x1 = bbox[2], y1 = bbox[3] (bottom right corner)
+                print "Number of cars in frame: ", len(inds)
                 for i in inds:
                     bbox = dets[i, :4]
-                    cvDrawBBox = bbox.astype(int)
+                    carDetectedBBox = bbox.astype(int)
                     score = dets[i, -1]
                     w = bbox[2] - bbox[0]
                     h = bbox[3] - bbox[1]
-                    cv2.rectangle(im_copy, (cvDrawBBox[0], cvDrawBBox[1]), (cvDrawBBox[2], cvDrawBBox[3]), (255, 0, 0), 3)
+                    #Draw rectangle on color copy
+                    cv2.rectangle(im_copy, (carDetectedBBox[0], carDetectedBBox[1]), (carDetectedBBox[2], carDetectedBBox[3]), (255, 0, 0), 3)
                     
-                    car_centroid = [(bbox[0]+(w/2)), (bbox[1]+(h/2))]
-                    cv2.circle (im_copy, ( (cvDrawBBox[0]+(w.astype(int)/2)) , (cvDrawBBox[1]+(h.astype(int)/2)) ), 4, (255, 0, 0), 4)
-                    if car_centroid is not None:
-                        for a, b in np.float32(car_centroid).reshape(-1, 2):
-                            print "car coordinates: ({0}, {1})".format(a, b)
-                            newDetectedCarPoints.append([(a, b)])
+                    #Calculate corners of interest within the bounding box area and add them all to the carCorner array
+                    detectedCarPixels = frame_gray[bbox[1]:bbox[3], bbox[0]:bbox[2]] #[y1:y2, x1:x2]
+                    detectedCarPixelsColor = im_copy[bbox[1]:bbox[3], bbox[0]:bbox[2]] #for show on colored image
 
-                print "Tracks: ", tracks
-                print "New Tracks: ", newDetectedCarPoints
+                    carCorners = cv2.goodFeaturesToTrack(detectedCarPixels, mask=detectedCarPixels, **self.feature_params)
 
-                if len(tracks) > 0:
-                    c.thresholding(tracks, newDetectedCarPoints)
-                    # if numFrames%10 ==0:
-                    #     c.temporalRemove(tracks)
-                    #     numFrames = 0
-                else:
-                    # print "running else"
-                    tracks = newDetectedCarPoints
+                    for x, y in np.float32(carCorners).reshape(-1, 2):
+                        cv2.circle(detectedCarPixels, (x,y), 5, (255, 0, 0), -1)
+                        cv2.circle(detectedCarPixelsColor, (x, y), 5, (255, 0, 0), -1)
 
-                numFrames += 1
-                # print "numFrames: ", numFrames
-                newDetectedCarPoints = []
-                # cv2.imshow('rectangles', im_copy)
-                # if cv2.waitKey(1) & 0xFF == ord('q'):
-                #     break
+                    detectedCars.append([carDetectedBBox, carCorners])
 
-                return tracks
+                print "detectedCars len: {0}-------------------------------------".format(len(detectedCars))
+                print "detectedCars: ", detectedCars
+
+                return detectedCars
+
+#need to think this over some more. Last write 9/26
+#Need to optimize this more later: for now check entire frame and all the points. Later, crop frame and only certain points
+#Given corner points of interest, find corners to track in entire frame and past frame
+
+#TO DO: Need to make sure this method runs for all the cars detected in detectedCars and not just the first car
+    def trackCars(self, detectedCars, frame_gray, prev_gray, im_copy):
+        print "np.float no reshape: ", np.float32([tr[-1] for tr in detectedCars[0][1] ])
+        print "np.float with reshape: ", np.float32([tr[-1] for tr in detectedCars[0][1] ]).reshape(-1, 1, 2)
+        #p0 = np.float32([tr[-1] for tr in detectedCars[1][1] ]).reshape(-1, 1, 2)
+
+        for singleCarPoints in detectedCars:
+            print "SingleCarPoins: ", singleCarPoints
+            print "SingleCarPoints second values: ", np.float32(singleCarPoints[1][:])
+
+            p0 = np.float32([tr[-1] for tr in detectedCars[0][1] ])
+            p1, st, err = cv2.calcOpticalFlowPyrLK(prev_gray, frame_gray, p0, None, **self.lk_params)
+            p0r, st, err = cv2.calcOpticalFlowPyrLK(frame_gray, prev_gray, p1, None, **self.lk_params)
+
+        for x, y in p0:
+            cv2.circle(frame_gray, (x, y), 5, (0, 255, 0), -1)
+            cv2.circle(im_copy, (x, y), 5, (0, 255, 0), -1)
+
+        for x1, y1 in p1:
+            cv2.circle(frame_gray, (x1, y1), 5, (0, 0, 255), -1)
+            cv2.circle(im_copy, (x1, y1), 5, (0, 0, 255), -1)
+
+        for x2, y2 in p0r:
+            cv2.circle(frame_gray, (x2, y2), 5, (255, 0, 255), -1)
+            cv2.circle(im_copy, (x2, y2), 5, (255, 0, 255), -1)
+
+            # cv2.imshow('p values', im_copy)
+            # if cv2.waitKey(0) & 0xFF == ord('q'):
+            #     break
+
+        d = abs(p0-p0r).reshape(-1, 2).max(-1)
+        good = d < 1
+        for tr, (x, y), good_flag in zip(detectedCars[0][1], p1.reshape(-1, 2), good):
+            if not good_flag:
+                continue
+            tr.append((x, y))
+            if len(tr) > self.track_len:
+                del tr[0]
+
+    def exampleCode(self, detectedCars, frame_gray, prev_gray): 
+        img0, img1 = self.prev_gray, frame_gray
+        p0 = np.float32([tr[-1] for tr in self.tracks]).reshape(-1, 1, 2)
+        p1, st, err = cv2.calcOpticalFlowPyrLK(img0, img1, p0, None, **lk_params)
+        p0r, st, err = cv2.calcOpticalFlowPyrLK(img1, img0, p1, None, **lk_params)
+        d = abs(p0-p0r).reshape(-1, 2).max(-1)
+        good = d < 1
+        new_tracks = []
+        for tr, (x, y), good_flag in zip(self.tracks, p1.reshape(-1, 2), good):
+            if not good_flag:
+                continue
+            tr.append((x, y))
+            if len(tr) > self.track_len:
+                del tr[0]
+            new_tracks.append(tr)
+            cv2.circle(vis, (x, y), 2, (0, 255, 0), -1)
+        self.tracks = new_tracks
+        cv2.polylines(vis, [np.int32(tr) for tr in self.tracks], False, (0, 255, 0))
+        draw_str(vis, (20, 20), 'track count: %d' % len(self.tracks))
 
 #Need to figure out a temporal method of removing old points
+#Simple code - works crudely. No temporal tracking. Need to use corners to track
     def thresholding(self, tracks, inputArray):
         tracksLength = len(tracks)
         for x in range(len(inputArray)):
@@ -117,23 +169,18 @@ class UrbanFlows():
             newTracksXVal = inputArray[x][-1][0]
             newTracksYVal = inputArray[x][-1][1]
             confirmAppended = False
-            print "range(tracksLength): ", tracksLength
             for y in range(tracksLength):
-                print "track[{0}] len: ".format(y), len(tracks[y])
-                # print "math: ", math.hypot(newTracksXVal - tracks[y][-1][0], newTracksYVal - tracks[y][-1][1])
+                print "math: ", math.hypot(newTracksXVal - tracks[y][-1][0], newTracksYVal - tracks[y][-1][1])
                 if math.hypot(newTracksXVal-tracks[y][-1][0], newTracksYVal-tracks[y][-1][1]) <= 100:
                     tracks[y].append((newTracksXVal, newTracksYVal))
                     print "tracks appended in that value: ", tracks
                     break
-                elif len(tracks[y]) > 10:
+                if len(tracks[y]) > 10:
                     print "track too long. deleting {0}".format(tracks[y][0])
                     del tracks[y][0]
                 elif (confirmAppended == False) & (y == tracksLength-1):
                     tracks.append([(newTracksXVal, newTracksYVal)])
                     print "tracks appended to the end"
-
-    def temporalRemove (self, tracks):
-        lenTracks = [len(tr) for tr in tracks]
 
     def detectTrackCars(self, net):
         """Detect object classes in an image using pre-computed object proposals."""
@@ -141,16 +188,22 @@ class UrbanFlows():
         cap = cv2.VideoCapture("/media/senseable-beast/beast-brain-1/Data/TrafficIntersectionVideos/slavePi2_RW1600_RH1200_TT900_FR15_06_10_2016_18_11_00_604698.h264")
 
         track_len = 10
-        tracks = [] #stores center values of detected cars that pass the threshold
-        numFrames = 0
+        #corners = [] #stores all coordinates of corners of interest for detected cars that pass the threshold
+        #rectangleTracks = [] #stores the bounding box coordinates for each detected car
+        detectedCars = [] #stores all information about the detected cars
         
         while (cap.isOpened()):
             ret, im = cap.read()
             frame_gray = cv2.cvtColor(im, cv2.COLOR_BGR2GRAY)
             im_copy = im.copy()
-            tracks = c.detectCars(im, im_copy, frame_gray, net, tracks, numFrames)
+            if len(detectedCars) <= 0:
+                detectedCars = c.detectCars(im, im_copy, frame_gray, net, detectedCars)
+            #Finished? Need to rewrite this qualification. Need to access this method after prev_gray has been made
+            elif len(detectedCars) > 0:
+                c.detectCars(im, im_copy, frame_gray, net, detectedCars)
+                c.trackCars(detectedCars, frame_gray, prev_gray, im_copy)
 
-            cv2.polylines(im_copy, [np.int32(tr) for tr in tracks], False, (0, 255, 0))
+                #cv2.polylines(im_copy, [np.int32(tr) for tr in corners], False, (0, 255, 0))
 
             print "before prev_gray"
             prev_gray = frame_gray
@@ -214,7 +267,7 @@ if __name__ == '__main__':
         cfg.GPU_ID = args.gpu_id
     net = caffe.Net(prototxt, caffemodel, caffe.TEST)
 
-    # print '\n\nLoaded network {:s}'.format(caffemodel)
+    print '\n\nLoaded network {:s}'.format(caffemodel)
 
     # Warmup on a dummy image
     im = 128 * np.ones((300, 500, 3), dtype=np.uint8)
