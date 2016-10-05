@@ -87,16 +87,17 @@ class UrbanFlows():
                         cv2.circle(detectedCarPixels, (x,y), 5, (255, 0, 0), -1)
                         cv2.circle(detectedCarPixelsColor, (x, y), 5, (255, 0, 0), -1)
 
-                    #detectedCarsInThisFrame.append([[carDetectedBBox], [carCorners]])
-                    detectedCarsInThisFrame.append([carDetectedBBox, carCorners])
-                    print "detectedCarsInThisFrame: ", detectedCarsInThisFrame
+                    detectedCarsInThisFrame.append([[[carDetectedBBox], [carCorners]]]) #pair1
+                    #detectedCarsInThisFrame.append([[carDetectedBBox], [carCorners]]) #pair2
+                    #detectedCarsInThisFrame.append([carDetectedBBox, carCorners]) #pair3
+                    #print "detectedCarsInThisFrame: ", detectedCarsInThisFrame
 
                 print "detectedCarsInThisFrame len: {0}-------------------------------------".format(len(detectedCarsInThisFrame))
 
                 return detectedCarsInThisFrame
 
 #Can adjust threshold here to take into consideration cars that are not detected in each frame (allow for greater distance between skipped frames)
-#Test this tomorrow to see
+#CHECK IF THIS WHOLE METHOD IS VALID
     def thresholding (self, detectedCars, newCars):
         aggregatedCars = []
         print "detectedCars shape: ", np.array(detectedCars).shape
@@ -104,13 +105,18 @@ class UrbanFlows():
         for singleNewCarIndex in range(len(newCars)):
             for singleDetectedCarIndex in range(len(detectedCars)):
                 confirmAppended = False
-                #print "math: ", math.hypot(abs(newCars[singleNewCarIndex][0][0][0] - detectedCars[singleDetectedCarIndex][0][0][0]), abs(newCars[singleNewCarIndex][0][0][1] - detectedCars[singleDetectedCarIndex][0][0][1]))
-                if math.hypot(abs(newCars[singleNewCarIndex][0][0][0] - detectedCars[singleDetectedCarIndex][0][0][0]), abs(newCars[singleNewCarIndex][0][0][1] - detectedCars[singleDetectedCarIndex][0][0][1])) < 100:
+                #print math
+                if math.hypot(abs(newCars[singleNewCarIndex][0][0][0][0] - detectedCars[singleDetectedCarIndex][0][0][0][0]), abs(newCars[singleNewCarIndex][0][0][0][1] - detectedCars[singleDetectedCarIndex][0][0][0][1])) < 100: #pair1
+                #if math.hypot(abs(newCars[singleNewCarIndex][0][0][0] - detectedCars[singleDetectedCarIndex][0][0][0]), abs(newCars[singleNewCarIndex][0][0][1] - detectedCars[singleDetectedCarIndex][0][0][1])) < 100: #pair2
+                #if math.hypot(abs(newCars[singleNewCarIndex][0][0] - detectedCars[singleDetectedCarIndex][0][0]), abs(newCars[singleNewCarIndex][0][1] - detectedCars[singleDetectedCarIndex][0][1])) < 100: #pair3
                     #print "Less than 100"
                     print "detectedCars shape before: ", np.array(detectedCars[singleDetectedCarIndex]).shape
                     print "newCars shape before: ", np.array(newCars[singleNewCarIndex]).shape
                     print "aggregated shape before: ", np.array(aggregatedCars).shape
-                    detectedCars[singleDetectedCarIndex].append(newCars[singleNewCarIndex])
+                    # print "detectedCars[singleDetectedCarIndex]: ", detectedCars[singleDetectedCarIndex]
+                    # print "newCars[singleNewCarIndex]: ", newCars[singleNewCarIndex][0]
+                    detectedCars[singleDetectedCarIndex].append(newCars[singleNewCarIndex][0])
+                    # print "detectedCars after appended newCars: ", detectedCars[singleDetectedCarIndex]
                     aggregatedCars.append(detectedCars[singleDetectedCarIndex])
                     del detectedCars[singleDetectedCarIndex]
                     confirmAppended = True
@@ -129,25 +135,25 @@ class UrbanFlows():
         # print "remaining cars-------------------"
         if len(detectedCars)>0:
             for remainingCar in detectedCars:
-                print "shape of remaining cars: ", np.array(remainingCar).shape
+                #print "remainingCar: ", remainingCar
+                #print "shape of remaining cars: ", np.array(remainingCar).shape
                 aggregatedCars.append(remainingCar)
 
         print "-----------------------shape of newCar array: ", np.array(aggregatedCars).shape
+        print "len aggregatedCars: ", len(aggregatedCars)
         for x in range(len(aggregatedCars)):
-            print "len aggregatedCars: ", len(aggregatedCars)
-            print "shape of x: ", np.array(aggregatedCars[x]).shape
-            print "theoretical reshaping: ", np.array(aggregatedCars[x]).reshape(-1, 2, 1)
-            #print "aggregatedCars: ", aggregatedCars[x]
-            # print "x: ", aggregatedCars[x][0]
-            # print "x1: ", aggregatedCars[x][-1]
-            # print "x:: ", aggregatedCars[x][:]
-            # print "x ::: ", aggregatedCars[x][:][:]
-            # print "x:::2: ", aggregatedCars[x][:][:][-2]
-            #cv2.rectangle(im_copy, (aggregatedCars[x][0], carDetectedBBox[1]), (carDetectedBBox[2], carDetectedBBox[3]), (255, 0, 0), 3) #Blue
+            print "aggregatedCarsX: ", aggregatedCars[x]
+            print "aggregatedCarsx-10: ", aggregatedCars[x][-1][0] #coordinates from the last inputted array
+            cv2.rectangle(im_copy, (aggregatedCars[x][-1][0][0], aggregatedCars[x][-1][0][1]), (aggregatedCars[x][-1][0][2], aggregatedCars[x][-1][0][3]), (255, 255, 255), 3) #Some color
+            #^CHECK IF THIS IS VALID TOMORROW
 
         #Visualize results
 
         return aggregatedCars
+
+    def countingCentroids(self, detectedCars):
+        for x in range(len(detectedCars)):
+            
 
 #Simple code - works crudely. No temporal tracking. Need to use corners to track
     # def simpleThresholding(self, tracks, inputArray):
