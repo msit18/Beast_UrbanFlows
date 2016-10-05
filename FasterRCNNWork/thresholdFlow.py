@@ -155,9 +155,9 @@ class UrbanFlows():
             print "before prev_gray"
             prev_gray = frame_gray
 
-            # cv2.imshow('frame', im_copy)
-            # if cv2.waitKey(0) & 0xFF == ord('q'):
-            #     break
+            cv2.imshow('frame', im_copy)
+            if cv2.waitKey(0) & 0xFF == ord('q'):
+                break
 
             print "take prev_gray frame****************************************************"
 
