@@ -41,6 +41,9 @@ class UrbanFlows():
                            minDistance = 7,
                            blockSize = 7 )
 
+    def __init__(self):
+        self.totalCarCount = 0
+
 #Detects cars within frame, detects corners of interest within detected car frame, outputs array
     def carDetectionMethod(self, im, im_copy, frame_gray, net, detectedCarsInThisFrame):
         scores, boxes = im_detect(net, im)
@@ -76,29 +79,25 @@ class UrbanFlows():
                     carDetectedBBox = bbox.astype(int)
                     score = dets[i, -1]
                     #Draw rectangle on color copy
-                    cv2.rectangle(im_copy, (carDetectedBBox[0], carDetectedBBox[1]), (carDetectedBBox[2], carDetectedBBox[3]), (255, 0, 0), 3) #Blue
-                    #cv2.circle(im_copy, (carDetectedBBox[0], carDetectedBBox[1]), 5, (0, 0, 255), -1)
+                    #If the coordinates of the detected box are not within the offending area, do below. Limit area here.
+                    #cv2.rectangle(im_copy, (carDetectedBBox[0], carDetectedBBox[1]), (carDetectedBBox[2], carDetectedBBox[3]), (255, 0, 0), 3) #Blue
                     
                     #Calculate corners of interest within the bounding box area and add them all to the carCorner array
                     detectedCarPixels = frame_gray[bbox[1]:bbox[3], bbox[0]:bbox[2]] #[y1:y2, x1:x2]
                     detectedCarPixelsColor = im_copy[bbox[1]:bbox[3], bbox[0]:bbox[2]] #for show on colored image
-                    carCorners = cv2.goodFeaturesToTrack(detectedCarPixels, mask=detectedCarPixels, **self.feature_params).reshape(-1, 2)
+                    #carCorners = cv2.goodFeaturesToTrack(detectedCarPixels, mask=detectedCarPixels, **self.feature_params).reshape(-1, 2)
+                    carCorners = []
 
                     for x, y in np.float32(carCorners).reshape(-1, 2): #Blue
                         cv2.circle(detectedCarPixels, (x,y), 5, (255, 0, 0), -1)
                         cv2.circle(detectedCarPixelsColor, (x, y), 5, (255, 0, 0), -1)
 
                     detectedCarsInThisFrame.append([[carDetectedBBox, carCorners]]) #pair0
-                    #detectedCarsInThisFrame.append([[[carDetectedBBox], [carCorners]]]) #pair1
-                    #detectedCarsInThisFrame.append([[carDetectedBBox], [carCorners]]) #pair2
-                    #detectedCarsInThisFrame.append([carDetectedBBox, carCorners]) #pair3
-                    #print "detectedCarsInThisFrame: ", detectedCarsInThisFrame
 
                 print "detectedCarsInThisFrame len: {0}-------------------------------------".format(len(detectedCarsInThisFrame))
 
                 return detectedCarsInThisFrame
 
-#TODO: Need more robust way of tracking cars
     def thresholding (self, detectedCars, newCars, im_copy, frameNum):
         aggregatedCars = []
         print "detectedCars shape: ", np.array(detectedCars).shape
@@ -106,54 +105,47 @@ class UrbanFlows():
         for singleNewCarIndex in range(len(newCars)):
             for singleDetectedCarIndex in range(len(detectedCars)):
                 confirmAppended = False
-                print "math: ", math.hypot(abs(newCars[singleNewCarIndex][0][0][0] - detectedCars[singleDetectedCarIndex][0][0][0]), abs(newCars[singleNewCarIndex][0][0][1] - detectedCars[singleDetectedCarIndex][0][0][1]))   #pair0
-                if math.hypot(abs(newCars[singleNewCarIndex][0][0][0] - detectedCars[singleDetectedCarIndex][0][0][0]), abs(newCars[singleNewCarIndex][0][0][1] - detectedCars[singleDetectedCarIndex][0][0][1])) < 200: #pair0
-                #if math.hypot(abs(newCars[singleNewCarIndex][0][0][0][0] - detectedCars[singleDetectedCarIndex][0][0][0][0]), abs(newCars[singleNewCarIndex][0][0][0][1] - detectedCars[singleDetectedCarIndex][0][0][0][1])) < 100: #pair1
-                #if math.hypot(abs(newCars[singleNewCarIndex][0][0][0] - detectedCars[singleDetectedCarIndex][0][0][0]), abs(newCars[singleNewCarIndex][0][0][1] - detectedCars[singleDetectedCarIndex][0][0][1])) < 100: #pair2
-                #if math.hypot(abs(newCars[singleNewCarIndex][0][0] - detectedCars[singleDetectedCarIndex][0][0]), abs(newCars[singleNewCarIndex][0][1] - detectedCars[singleDetectedCarIndex][0][1])) < 100: #pair3
-                    print "Less than 100"
-                    # print "detectedCars shape before: ", np.array(detectedCars[singleDetectedCarIndex]).shape
-                    # print "newCars shape before: ", np.array(newCars[singleNewCarIndex]).shape
-                    # print "aggregated shape before: ", np.array(aggregatedCars).shape
-                    # print "detectedCars[singleDetectedCarIndex]: ", detectedCars[singleDetectedCarIndex]
-                    # print "newCars[singleNewCarIndex]: ", newCars[singleNewCarIndex][0]
+                # print "detectedCars[singleNewCarIndex]: ", detectedCars[singleDetectedCarIndex]
+                # print "detectedCars[singleDetectedCarIndex][-1][0][0]: ", detectedCars[singleDetectedCarIndex][-1][0][0]
+                cv2.circle(im_copy, (newCars[singleNewCarIndex][-1][0][0], newCars[singleNewCarIndex][-1][0][1]), 5, (0, 0, 0), -1)
+                cv2.circle(im_copy, (detectedCars[singleDetectedCarIndex][-1][0][0], detectedCars[singleDetectedCarIndex][-1][0][1]), 5, (0, 255, 255), -1)
+
+                print "math: ", math.hypot(abs(newCars[singleNewCarIndex][-1][0][0] - detectedCars[singleDetectedCarIndex][-1][0][0]), abs(newCars[singleNewCarIndex][-1][0][1] - detectedCars[singleDetectedCarIndex][-1][0][1]))   #pair0
+                if math.hypot(abs(newCars[singleNewCarIndex][-1][0][0] - detectedCars[singleDetectedCarIndex][-1][0][0]), abs(newCars[singleNewCarIndex][-1][0][1] - detectedCars[singleDetectedCarIndex][-1][0][1])) < 100: #pair0
+                    print "Less than 100**********"
+                    print "DRAW BLUE RECTANGLE"
                     detectedCars[singleDetectedCarIndex].append(newCars[singleNewCarIndex][0])
-                    # print "detectedCars after appended newCars: ", detectedCars[singleDetectedCarIndex]
                     aggregatedCars.append(detectedCars[singleDetectedCarIndex])
-                    del detectedCars[singleDetectedCarIndex]
+                    cv2.rectangle(im_copy, (detectedCars[singleDetectedCarIndex][-1][0][0], detectedCars[singleDetectedCarIndex][-1][0][1]), (detectedCars[singleDetectedCarIndex][-1][0][2], detectedCars[singleDetectedCarIndex][-1][0][3]), (255, 0, 0), 3)
+                    del detectedCars[singleDetectedCarIndex]       
                     confirmAppended = True
-                    # print "detectedCars shape after: ", np.array(detectedCars).shape
-                    # print "aggregatedCars shape after: ", np.array(aggregatedCars).shape
-                    # print "newCars shape after: ", np.array(newCars).shape
                     break
-            #Need to check the last statement (len new cars one. Is not taking into consideration the last value)
-            if (confirmAppended == False) & (singleNewCarIndex < len(newCars)-1):
+
+            if (confirmAppended == False):
+                print "DRAW WHITE RECTANGLE"
                 aggregatedCars.append(newCars[singleNewCarIndex])
-                print "If statement is true. Appended size is now: ", np.array(aggregatedCars).shape
+                cv2.rectangle(im_copy, (newCars[singleNewCarIndex][-1][0][0], newCars[singleNewCarIndex][-1][0][1]), (newCars[singleNewCarIndex][-1][0][2], newCars[singleNewCarIndex][-1][0][3]), (255, 255, 255), 3)
+                self.totalCarCount += 1
+                print "If statement is true. += totalCarCount. Appended size is now: ", len(aggregatedCars)
             print "NEXT CAR;;;;;;;;;;;;;;;;;;;;;;;;;;;;"
 
-        # print "len newCars: ", len(newCars)
-        # print "len detectedCars: ", len(detectedCars)
-        # print "len aggregatedCars: ", len(aggregatedCars)
-        # print "remaining cars-------------------"
-        print "=====================================================DC & FN?: ", (len(detectedCars)>0 and (frameNum%10>0))
-        # print "=====================================================frameNum >0?: ", (frameNum%10>0)
-        # print "=====================================================detectedCars len?: ", (len(detectedCars)>0)
+        print "DC & FN?: ", (len(detectedCars)>0 and (frameNum%10>0))
         if (len(detectedCars)>0 and (frameNum%10>0)):
+            print "adding remaining cars to the end of aggregatedCars"
             for remainingCar in detectedCars:
-                #print "remainingCar: ", remainingCar
-                #print "shape of remaining cars: ", np.array(remainingCar).shape
                 aggregatedCars.append(remainingCar)
+                print "DRAW GREEN RECTANGLE"
+                cv2.rectangle(im_copy, (remainingCar[-1][0][0], remainingCar[-1][0][1]), (remainingCar[-1][0][2], remainingCar[-1][0][3]), (0, 255, 0), 3) #green
 
+        #Vizualize the car traveling through the space
+        for car in aggregatedCars:
+            tracks = []
+            for x, y in zip([pts[0][0] for pts in car], [pts[0][1] for pts in car]):
+                tracks.append([x, y])
+            tracks = np.array([tracks], dtype=np.int32)
+            cv2.polylines(im_copy, tracks, False, (0, 0, 0))
 
-        print "-----------------------shape of newCar array: ", np.array(aggregatedCars).shape
-        print "len aggregatedCars: ", len(aggregatedCars)
-        for eachCar in aggregatedCars:
-            #print "aggregatedCarsX: ", aggregatedCars[eachCar]
-            #print "aggregatedCarsx-10: ", eachCar[-1][0] #coordinates from the last inputted array
-            #print "aggregatedCarsx-100: ", aggregatedCars[eachCar][-1][0][0]
-            cv2.rectangle(im_copy, (eachCar[-1][0][0], eachCar[-1][0][1]), (eachCar[-1][0][2], eachCar[-1][0][3]), (255, 255, 255), 3) #white #pair0
-            ##########Could figure out a way to combine cv2.rectangle with countingCars method below
+        print "-----------------------len aggregatedCars: ", len(aggregatedCars)
 
         return aggregatedCars
 
@@ -162,34 +154,33 @@ class UrbanFlows():
         print "bboxCoordinates: ", bboxCoordinates
         for eachDetectedCar in bboxCoordinates:
             print "eachDetectedCar: ", eachDetectedCar
-            #centroid calculation is wrong below 
             ##USE CENTROID WEIGHTS FROM THE DETECTED CORNERS? TRACK AVERAGE KEYPOINTS
             ###CALCULATE FRAME CENTROID AND CORNER CENTROID. COMPARE VALUES
             coordCentroid = ((eachDetectedCar[0] + (eachDetectedCar[2]-eachDetectedCar[0])/2), (eachDetectedCar[1] + (eachDetectedCar[3]-eachDetectedCar[1])/2))
-            cv2.circle(im_copy, (coordCentroid[0], coordCentroid[1]), 5, (0, 0, 0), -1)
-            print "coord centroid: ", coordCentroid
+            #cv2.circle(im_copy, (coordCentroid[0], coordCentroid[1]), 5, (0, 0, 0), -1)
+            #print "coord centroid: ", coordCentroid
 
 
 #Simple code - works crudely. No temporal tracking. Need to use corners to track
-    # def simpleThresholding(self, tracks, inputArray):
-    #     tracksLength = len(tracks)
-    #     for x in range(len(inputArray)):
-    #         print str(inputArray[x][-1][0]) + "-------------------------------"
-    #         newTracksXVal = inputArray[x][-1][0]
-    #         newTracksYVal = inputArray[x][-1][1]
-    #         confirmAppended = False
-    #         for y in range(tracksLength):
-    #             print "math: ", math.hypot(newTracksXVal - tracks[y][-1][0], newTracksYVal - tracks[y][-1][1])
-    #             if math.hypot(newTracksXVal-tracks[y][-1][0], newTracksYVal-tracks[y][-1][1]) <= 100:
-    #                 tracks[y].append((newTracksXVal, newTracksYVal))
-    #                 print "tracks appended in that value: ", tracks
-    #                 break
-    #             if len(tracks[y]) > 10:
-    #                 print "track too long. deleting {0}".format(tracks[y][0])
-    #                 del tracks[y][0]
-    #             elif (confirmAppended == False) & (y == tracksLength-1):
-    #                 tracks.append([(newTracksXVal, newTracksYVal)])
-    #                 print "tracks appended to the end"
+    def simpleThresholding(self, tracks, inputArray):
+        tracksLength = len(tracks)
+        for x in range(len(inputArray)):
+            print str(inputArray[x][-1][0]) + "-------------------------------"
+            newTracksXVal = inputArray[x][-1][0]
+            newTracksYVal = inputArray[x][-1][1]
+            confirmAppended = False
+            for y in range(tracksLength):
+                print "math: ", math.hypot(newTracksXVal - tracks[y][-1][0], newTracksYVal - tracks[y][-1][1])
+                if math.hypot(newTracksXVal-tracks[y][-1][0], newTracksYVal-tracks[y][-1][1]) <= 100:
+                    tracks[y].append((newTracksXVal, newTracksYVal))
+                    print "tracks appended in that value: ", tracks
+                    break
+                if len(tracks[y]) > 10:
+                    print "track too long. deleting {0}".format(tracks[y][0])
+                    del tracks[y][0]
+                elif (confirmAppended == False) & (y == tracksLength-1):
+                    tracks.append([(newTracksXVal, newTracksYVal)])
+                    print "tracks appended to the end"
 
     def detectTrackCars(self, net):
         """Detect object classes in an image using pre-computed object proposals."""
@@ -206,6 +197,8 @@ class UrbanFlows():
             im_copy = im.copy()
             if len(detectedCars) <= 0:
                 detectedCars = c.carDetectionMethod(im, im_copy, frame_gray, net, detectedCars)
+                print "len(detectedCars): ", len(detectedCars)
+                self.totalCarCount += len(detectedCars)
             elif len(detectedCars) > 0:
                 print "detectedcars len: ", len(detectedCars)
                 newCars = c.carDetectionMethod(im, im_copy, frame_gray, net, detectedCars)
@@ -214,13 +207,12 @@ class UrbanFlows():
                 c.countingCentroids(detectedCars, im_copy)
 
             frameNum += 1
-            print "====================================================FRAMENUM ", frameNum
-            print "before prev_gray"
+            print "====================================================FRAMENUM {0}, TOTAL CAR COUNTS {1}".format(frameNum, self.totalCarCount)
             prev_gray = frame_gray
 
-            # cv2.imshow('frame', im_copy)
-            # if cv2.waitKey(0) & 0xFF == ord('q'):
-            #     break
+            cv2.imshow('frame', im_copy)
+            if cv2.waitKey(1) & 0xFF == ord('q'):
+                break
 
             print "take prev_gray frame****************************************************"
 
