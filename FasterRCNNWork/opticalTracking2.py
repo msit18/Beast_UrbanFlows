@@ -84,18 +84,6 @@ class UrbanFlows():
                     cv2.circle(im_copy, bboxPPLCentroid, 5, (190, 86, 252), -1) #pink, bbox for people
                     cv2.rectangle(im_copy, (pplDetectedBBox[0], pplDetectedBBox[1]), (pplDetectedBBox[2], pplDetectedBBox[3]), (190, 86, 252), 3) #pink for people
 
-            # if cls == "bus":
-            #     indsBUS = np.where(dets[:, -1] >= 0.5)[0] #Threshold applied to score values here
-            #     im = im[:, :, (2, 1, 0)]
-
-            #     for i in indsBUS:
-            #         bboxBUS = dets[i, :4]
-            #         busDetectedBBox = bboxBUS.astype(int)
-            #         score = dets[i, -1]
-            #         bboxBUSCentroid = c.mathArrayCentroid(busDetectedBBox)
-            #         cv2.circle(im_copy, bboxBUSCentroid, 5, (0, 0, 0), -1)# black, bbox for bus
-            #         cv2.rectangle(im_copy, (busDetectedBBox[0], busDetectedBBox[1]), (busDetectedBBox[2], busDetectedBBox[3]), (0, 0, 0), 3) #black for bus
-
             elif cls == "bicycle":
                 indsBIKE = np.where(dets[:, -1] >= 0.25)[0]
                 im = im[:, :, (2, 1, 0)]
@@ -134,13 +122,9 @@ class UrbanFlows():
                             carCorners = cv2.goodFeaturesToTrack(detectedCarPixels, mask=detectedCarPixels, **self.feature_params).reshape(-1, 2)
                         except:
                             print "ERRORRRRRRRRRRRRRRRRRRRRRRRRRRRRRR"
-                            print "detectedCarPixels: ", detectedCarPixels
-                            print "frame_gray: ", frame_gray
-                            print "bbox coordinates: ", bbox
                             print "carCorners: ", cv2.goodFeaturesToTrack(detectedCarPixels, mask=detectedCarPixels, **self.feature_params)
                             print "carCorners less: ", cv2.goodFeaturesToTrack(detectedCarPixels, mask=detectedCarPixels, **self.feature_params_less).reshape(-1, 2)
                             carCorners = cv2.goodFeaturesToTrack(detectedCarPixels, mask=detectedCarPixels, **self.feature_params_less).reshape(-1, 2)
-                            print "final CarCorners: ", carCorners
 
                         # for x, y in np.float32(carCorners).reshape(-1, 2): #black
                         #     cv2.circle(detectedCarPixels, (x,y), 5, (0, 0, 0), -1)
@@ -152,7 +136,7 @@ class UrbanFlows():
                         print "car not added. Coordinates: ", bbox
 
                 print "detectedCarsInThisFrame len: {0}-------------------------------------".format(len(detectedCarsInThisFrame))
-                print "detectedCarsInThisFrame: ", detectedCarsInThisFrame
+                # print "detectedCarsInThisFrame: ", detectedCarsInThisFrame
 
                 return detectedCarsInThisFrame
 
@@ -201,13 +185,9 @@ class UrbanFlows():
                             carCorners = cv2.goodFeaturesToTrack(detectedCarPixels, mask=detectedCarPixels, **self.feature_params).reshape(-1, 2)
                         except:
                             print "ERRORRRRRRRRRRRRRRRRRRRRRRRRRRRRRR"
-                            print "detectedCarPixels: ", detectedCarPixels
-                            print "frame_gray: ", frame_gray
-                            print "bbox coordinates: ", bbox
                             print "carCorners: ", cv2.goodFeaturesToTrack(detectedCarPixels, mask=detectedCarPixels, **self.feature_params)
                             print "carCorners less: ", cv2.goodFeaturesToTrack(detectedCarPixels, mask=detectedCarPixels, **self.feature_params_less).reshape(-1, 2)
                             carCorners = cv2.goodFeaturesToTrack(detectedCarPixels, mask=detectedCarPixels, **self.feature_params_less).reshape(-1, 2)
-                            print "final CarCorners: ", carCorners
 
                         # for x, y in np.float32(carCorners).reshape(-1, 2): #black
                         #     cv2.circle(detectedCarPixels, (x,y), 5, (0, 0, 0), -1)
@@ -268,9 +248,11 @@ class UrbanFlows():
                     print "added to totalCarCount"
                     self.totalCarCount += 1
                     self.carCountMin += 1
-                else:
+                elif str(itemName) == "bus":
                     print "added to totalBusCount"
                     self.totalBusCount += 1
+                else:
+                    print "not added to anything. Itemname is not car or bus"
                 print "If statement is true. += totalCarCount. Appended size is now: ", len(aggregatedCars)
             print "NEXT CAR;;;;;;;;;;;;;;;;;;;;;;;;;;;;"
 
@@ -309,27 +291,6 @@ class UrbanFlows():
                 centers.append([c.mathArrayCentroid(pts[0])])
             cv2.polylines(im_copy, np.array([centers], dtype=np.int32), False, (255, 50, 125)) #purple to follow tracked box
 
-
-#Simple code - works crudely. No temporal tracking. Need to use corners to track
-    def simpleThresholding(self, tracks, inputArray):
-        tracksLength = len(tracks)
-        for x in range(len(inputArray)):
-            print str(inputArray[x][-1][0]) + "-------------------------------"
-            newTracksXVal = inputArray[x][-1][0]
-            newTracksYVal = inputArray[x][-1][1]
-            confirmAppended = False
-            for y in range(tracksLength):
-                print "math: ", math.hypot(newTracksXVal - tracks[y][-1][0], newTracksYVal - tracks[y][-1][1])
-                if math.hypot(newTracksXVal-tracks[y][-1][0], newTracksYVal-tracks[y][-1][1]) <= 100:
-                    tracks[y].append((newTracksXVal, newTracksYVal))
-                    print "tracks appended in that value: ", tracks
-                    break
-                if len(tracks[y]) > 10:
-                    print "track too long. deleting {0}".format(tracks[y][0])
-                    del tracks[y][0]
-                elif (confirmAppended == False) & (y == tracksLength-1):
-                    tracks.append([(newTracksXVal, newTracksYVal)])
-                    print "tracks appended to the end"
 
     def main(self, net):
         """Detect object classes in an image using pre-computed object proposals."""

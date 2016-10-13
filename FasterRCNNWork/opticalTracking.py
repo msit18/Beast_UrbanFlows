@@ -12,10 +12,10 @@
 """
 Demo script showing detections in sample images.
 INTEGRATING TRACKING FOR THESE CARS
-
 """
 
 import _init_paths
+import caffe
 from fast_rcnn.config import cfg
 from fast_rcnn.test import im_detect
 from fast_rcnn.nms_wrapper import nms
@@ -24,7 +24,7 @@ import matplotlib.pyplot as plt
 from matplotlib import path
 import numpy as np
 import scipy.io as sio
-import caffe, os, sys, cv2, time, math
+import os, sys, cv2, time, math
 import argparse
 
 import video
@@ -65,7 +65,44 @@ class UrbanFlows():
                               cls_scores[:, np.newaxis])).astype(np.float32) #stacks them together
             keep = nms(dets, NMS_THRESH) #Removes overlapping bounding boxes
             dets = dets[keep, :]
-            if cls == "car":
+            if cls == "person":
+                indsPPL = np.where(dets[:, -1] >= 0.05)[0] #Threshold applied to score values here
+
+                im = im[:, :, (2, 1, 0)]
+
+                for i in indsPPL:
+                    bboxPPL = dets[i, :4]
+                    pplDetectedBBox = bboxPPL.astype(int)
+                    score = dets[i, -1]
+                    bboxPPLCentroid = c.mathArrayCentroid(pplDetectedBBox)
+                    cv2.circle(im_copy, bboxPPLCentroid, 5, (190, 86, 252), -1) #pink, bbox for people
+                    cv2.rectangle(im_copy, (pplDetectedBBox[0], pplDetectedBBox[1]), (pplDetectedBBox[2], pplDetectedBBox[3]), (190, 86, 252), 3) #pink for people
+
+            elif cls == "bus":
+                indsBUS = np.where(dets[:, -1] >= 0.5)[0] #Threshold applied to score values here
+                im = im[:, :, (2, 1, 0)]
+
+                for i in indsBUS:
+                    bboxBUS = dets[i, :4]
+                    busDetectedBBox = bboxBUS.astype(int)
+                    score = dets[i, -1]
+                    bboxBUSCentroid = c.mathArrayCentroid(busDetectedBBox)
+                    cv2.circle(im_copy, bboxBUSCentroid, 5, (0, 0, 0), -1)# black, bbox for bus
+                    cv2.rectangle(im_copy, (busDetectedBBox[0], busDetectedBBox[1]), (busDetectedBBox[2], busDetectedBBox[3]), (0, 0, 0), 3) #black for bus
+
+            elif cls == "bicycle":
+                indsBIKE = np.where(dets[:, -1] >= 0.25)[0]
+                im = im[:, :, (2, 1, 0)]
+
+                for i in indsBIKE:
+                    bboxBIKE = dets[i, :4]
+                    bikeDetectedBBox = bboxBIKE.astype(int)
+                    score = dets[i, -1]
+                    bboxBIKECentroid = c.mathArrayCentroid(bikeDetectedBBox)
+                    cv2.circle(im_copy, bboxBIKECentroid, 5, (0, 0, 0), -1)# black, bbox for bus
+                    cv2.rectangle(im_copy, (bikeDetectedBBox[0], bikeDetectedBBox[1]), (bikeDetectedBBox[2], bikeDetectedBBox[3]), (0, 144, 255), 3) #gold for bike
+
+            elif cls == "car":
                 inds = np.where(dets[:, -1] >= 0.5)[0] #Threshold applied to score values here
                 im = im[:, :, (2, 1, 0)]
 
