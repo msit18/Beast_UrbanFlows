@@ -1,0 +1,38 @@
+Error log for opticalTracking2
+
+Frame 38 - +1 car, difference is 141. NC wcentroid (1111, 534), DC wcentroid (1250, 560)
+Frame 39 - +1 car, difference is 125. NC wcentroid (1126, 539), DC wcentroid (1250, 560)
+Frame 40 - No new cars added because difference is 150. NewCar wcentroid (1103, 518), DC wcentroid (1250, 560)
+Frame 55 - Newly detected car is mysteriously not added to new cars. Need to improve drawing box logic
+
+^changed threshold to 150 to be more inclusive. Will need to see how this pans out when there are more cars in the intersection
+Frame 103 - +1 car, detectedCar reset at frame 100 removes a detectedCar which is not detected again until this frame
+Frame 107 - +1 car, difference is 210. NC wcentroid (801, 724), DC wcentroid (614, 627)
+Frame 109 - +1 car, detectedCar reset at frame 180 removes a detectedCar which is not detected again in time for the leftover check to catch it
+Frame 234 - +1 car, detectedCar reset at frame 230 removes a detectedCar which is not detected again until this frame
+Frame 291 - +1 car, detectedCar reset at frame 290 removes a detectedCar which is detected again in this frame
+
+^changed reset timer to every 17 frames
+Frame 107 - +1 car, difference is 210. NC wcentroid (801, 724), DC wcentroid (614, 627)
+Frame 182 - +1 car, detectedCar reset at frame 181 removes a detectedCar which is not detected again until now
+Frame 243 - +1 car, 
+
+
+Accurate human car counts frameNum
+
+Enter FrameNum 				Exit Frame
+FrameNum: 0		CarNum: 1	Exit Frame: 25		Time in Frame: 25 (in frame)
+FrameNum: 28	CarNum: 2	Exit Frame: 71		Time in Frame: 43
+FrameNum: 57	CarNum: 3	Exit Frame: 93		Time in Frame: 36
+FrameNum: 74	CarNum: 4	Exit Frame: 113		Time in Frame: 39
+FrameNum: 87	CarNum: 5	Exit Frame: 126		Time in Frame: 39
+FrameNum: 121	CarNum: 6	Exit Frame: 162		Time in Frame: 41
+FrameNum: 145	CarNum: 7	Exit Frame: 179		Time in Frame: 34
+FrameNum: 187	CarNum: 8	Exit Frame: 229		Time in Frame: 32
+FrameNum: 205	CarNum: 9	Exit Frame: 235		Time in Frame: 30
+FrameNuM: 267	CarNum: 10	Exit Frame: 290		Time in Frame: 23
+FrameNum: 303	CarNum: 11	Exit Frame: 315		Time in Frame: 12
+FrameNum: 336	CarNum: 12	Exit Frame: 360		Time in Frame: 24
+FrameNum: 360	CarNum: 13	Exit Frame: 384		Time in Frame: 24
+FrameNum: 414	CarNum: 14	Exit Frame: 446		Time in Frame: 32
+

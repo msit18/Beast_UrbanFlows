@@ -51,6 +51,7 @@ class UrbanFlows():
         self.totalCarCount = 0
         self.carCountMin = 0
         self.totalBusCount = 0
+        self.centroidsOutsideOfBbox = []
 
 #Detects cars within frame, detects corners of interest within detected car frame, outputs array
     def carDetectionMethod(self, im, im_copy, frame_gray, net, detectedCarsInThisFrame, p):
@@ -71,9 +72,10 @@ class UrbanFlows():
                               cls_scores[:, np.newaxis])).astype(np.float32) #stacks them together
             keep = nms(dets, NMS_THRESH) #Removes overlapping bounding boxes
             dets = dets[keep, :]
+
+            #Draw boxes around detected people and bicycles. They are not counted later on.
             if cls == "person":
                 indsPPL = np.where(dets[:, -1] >= 0.05)[0] #Threshold applied to score values here
-
                 im = im[:, :, (2, 1, 0)]
 
                 for i in indsPPL:
@@ -115,6 +117,7 @@ class UrbanFlows():
                     #Check if the centroid of the detected box is within the designated traffic intersection area
                     if p.contains_point(bboxCentroid) == 1:
                         print "within area"
+                        #cv2.rectangle(im_copy, (carDetectedBBox[0], carDetectedBBox[1]), (carDetectedBBox[2], carDetectedBBox[3]), (255, 0, 0), 3)
                         #Calculate corners of interest within the bounding box area and add them all to the carCorner array
                         detectedCarPixels = frame_gray[bbox[1]:bbox[3], bbox[0]:bbox[2]] #[y1:y2, x1:x2]
                         detectedCarPixelsColor = im_copy[bbox[1]:bbox[3], bbox[0]:bbox[2]] #for show on colored image
@@ -134,6 +137,8 @@ class UrbanFlows():
 
                     else:
                         print "car not added. Coordinates: ", bbox
+                        self.centroidsOutsideOfBbox.append(c.mathArrayCentroid(bbox))
+
 
                 print "detectedCarsInThisFrame len: {0}-------------------------------------".format(len(detectedCarsInThisFrame))
                 # print "detectedCarsInThisFrame: ", detectedCarsInThisFrame
@@ -189,14 +194,17 @@ class UrbanFlows():
                             print "carCorners less: ", cv2.goodFeaturesToTrack(detectedCarPixels, mask=detectedCarPixels, **self.feature_params_less).reshape(-1, 2)
                             carCorners = cv2.goodFeaturesToTrack(detectedCarPixels, mask=detectedCarPixels, **self.feature_params_less).reshape(-1, 2)
 
-                        # for x, y in np.float32(carCorners).reshape(-1, 2): #black
-                        #     cv2.circle(detectedCarPixels, (x,y), 5, (0, 0, 0), -1)
-                        #     cv2.circle(detectedCarPixelsColor, (x, y), 5, (0, 0, 0), -1)
+                        for x, y in np.float32(carCorners).reshape(-1, 2): #black
+                            cv2.circle(detectedCarPixels, (x,y), 5, (0, 0, 0), -1)
+                            cv2.circle(detectedCarPixelsColor, (x, y), 5, (0, 0, 0), -1)
 
                         detectedCarsInThisFrame.append([[carDetectedBBox, carCorners]])
 
                     else:
                         print "car not added. Coordinates: ", bbox
+                        # print "adding this car centroid to possible leftover pts"
+                        self.centroidsOutsideOfBbox.append(c.mathArrayCentroid(bbox))
+                        # print "self.centroidsOutsideOfBbox: ", self.centroidsOutsideOfBbox
 
                 print "detectedCarsInThisFrame len: {0}-------------------------------------".format(len(detectedCarsInThisFrame))
                 print "detectedCarsInThisFrame: ", detectedCarsInThisFrame
@@ -204,65 +212,133 @@ class UrbanFlows():
                 return detectedCarsInThisFrame
 
 
-
 #TO FIX: NEED A BETTER WAY TO COUNT CARS. CURRENT METHOD IS A LITTLE FAULTY, BUT CONSERVATIVE (CANCELS OUT THE FALSE POSITIVES IN THE END)
-#ONCE ALL THE PAST DETECTED CARS ARE MATCHED, NO NEW CARS CAN BE ADDED (THEY SHOULD BE TAKEN INTO ACCOUNT ACTUALLY... NEED TO CHECK)
+#To FIX: Needs a better thresholding algorithm
+
     def thresholding (self, detectedCars, newCars, im_copy, frameNum, itemName):
         aggregatedCars = []
         print "detectedCars len: ", len(detectedCars)
         print "newCars len: ", len(newCars)
+
         for singleNewCarIndex in range(len(newCars)):
+            carToBeDeletedIndex = 0
+            confirmAppended = False
+
+            weightedNewCarsCornerCentroid = c.calcWeightedFix(newCars[singleNewCarIndex])
+            cv2.circle(im_copy, weightedNewCarsCornerCentroid, 5, (0, 84, 255), -1) #orange, newly detected car
+            print "weightedNewCarsCornerCentroid: ", weightedNewCarsCornerCentroid
+
+            print "len(detectedCars) before singleDetectedCarIndex: ", len(detectedCars)
             for singleDetectedCarIndex in range(len(detectedCars)):
-                confirmAppended = False
+                carToBeDeletedThresholdCalc = 150
+                # confirmAppended = False
 
                 #Weighted centroid from last detected Frame
-                print "detectedCars[singleDetectedCarIndex][-1][0][0]: ", detectedCars[singleDetectedCarIndex][-1][0]
-                print "newCars[singleNewCarIndex][-1][0][0]: ", newCars[singleNewCarIndex][-1][0]
-
                 weightedDetectedCarsCornerCentroid = c.calcWeightedFix(detectedCars[singleDetectedCarIndex])
-                print "weightedDetectedCarsCornerCentroid: ", weightedDetectedCarsCornerCentroid
                 cv2.circle(im_copy, weightedDetectedCarsCornerCentroid, 5, (0, 37, 255), -1) #bright red
 
-                weightedNewCarsCornerCentroid = c.calcWeightedFix(newCars[singleNewCarIndex])
+                print "detectedCars[singleDetectedCarIndex][-1][0][0]: ", detectedCars[singleDetectedCarIndex][-1][0]
+                print "newCars[singleNewCarIndex][-1][0][0]: ", newCars[singleNewCarIndex][-1][0]
+                print "weightedDetectedCarsCornerCentroid: ", weightedDetectedCarsCornerCentroid
                 print "weightedNewCarsCornerCentroid: ", weightedNewCarsCornerCentroid
-                cv2.circle(im_copy, weightedNewCarsCornerCentroid, 5, (0, 84, 255), -1) #orange, newly detected car
 
-                print "math for wcenter: ", math.hypot(abs(weightedNewCarsCornerCentroid[0] - weightedDetectedCarsCornerCentroid[0]), abs(weightedNewCarsCornerCentroid[1] - weightedDetectedCarsCornerCentroid[1]))
-                if math.hypot(abs(weightedNewCarsCornerCentroid[0] - weightedDetectedCarsCornerCentroid[0]), abs(weightedNewCarsCornerCentroid[1] - weightedDetectedCarsCornerCentroid[1])) < 115:
-                    print "Less than 100**********"
-                    print "DRAW PURPLE RECTANGLE"
-                    detectedCars[singleDetectedCarIndex].append(newCars[singleNewCarIndex][0])
-                    aggregatedCars.append(detectedCars[singleDetectedCarIndex])
-                    cv2.circle(im_copy, c.mathArrayCentroid(detectedCars[singleDetectedCarIndex][-1][0]), 5, (150, 50, 100), -1) #purple
-                    cv2.rectangle(im_copy, (detectedCars[singleDetectedCarIndex][-1][0][0], detectedCars[singleDetectedCarIndex][-1][0][1]), (detectedCars[singleDetectedCarIndex][-1][0][2], detectedCars[singleDetectedCarIndex][-1][0][3]), (150, 50, 100), 3) #purple
-                    del detectedCars[singleDetectedCarIndex]
-                    confirmAppended = True
-                    break
+                thresholdCalc = math.hypot(abs(weightedNewCarsCornerCentroid[0] - weightedDetectedCarsCornerCentroid[0]), abs(weightedNewCarsCornerCentroid[1] - weightedDetectedCarsCornerCentroid[1]))
+                print "+++++++++++++++++++++++++++++++++++++++++++math for wcenter: ", thresholdCalc
+                if thresholdCalc < 155:
+                    print "Less than 115**********"
+                    if carToBeDeletedThresholdCalc > thresholdCalc:
+                        carToBeDeletedIndex = singleDetectedCarIndex
+                        carToBeDeletedThresholdCalc = thresholdCalc
+                        confirmAppended = True
 
-            if (confirmAppended == False):
-                print "DRAW GREEN RECTANGLE"
-                aggregatedCars.append(newCars[singleNewCarIndex])
-                cv2.circle(im_copy, c.mathArrayCentroid(newCars[singleNewCarIndex][-1][0]), 5, (0, 255, 0), -1) #green
-                cv2.rectangle(im_copy, (newCars[singleNewCarIndex][-1][0][0], newCars[singleNewCarIndex][-1][0][1]), (newCars[singleNewCarIndex][-1][0][2], newCars[singleNewCarIndex][-1][0][3]), (0, 255, 0), 3) #green
-                if str(itemName) == "car":
-                    print "added to totalCarCount"
-                    self.totalCarCount += 1
-                    self.carCountMin += 1
-                elif str(itemName) == "bus":
-                    print "added to totalBusCount"
-                    self.totalBusCount += 1
-                else:
-                    print "not added to anything. Itemname is not car or bus"
-                print "If statement is true. += totalCarCount. Appended size is now: ", len(aggregatedCars)
+            print "confirmAppended: ", confirmAppended
+            print "len(detectedCars: ", len(detectedCars)
+            print "len(newCars): ", len(newCars)
+            if confirmAppended == True and len(detectedCars) > 0:
+                print "DRAW PURPLE RECTANGLE"
+                detectedCars[carToBeDeletedIndex].append(newCars[singleNewCarIndex][0])
+                aggregatedCars.append(detectedCars[carToBeDeletedIndex])
+                cv2.circle(im_copy, c.mathArrayCentroid(detectedCars[carToBeDeletedIndex][-1][0]), 5, (150, 50, 100), -1) #purple
+                cv2.rectangle(im_copy, (detectedCars[carToBeDeletedIndex][-1][0][0], detectedCars[carToBeDeletedIndex][-1][0][1]), (detectedCars[carToBeDeletedIndex][-1][0][2], detectedCars[carToBeDeletedIndex][-1][0][3]), (150, 50, 100), 3) #purple
+                del detectedCars[carToBeDeletedIndex]
+
+            elif confirmAppended == False:
+                print "THIS IS A NEW CAR BECAUSE IT HAS NOT YET BEEN LINKED TO OTHER DETECTEDCARS"
+                if len(self.centroidsOutsideOfBbox) > 0:
+                    print "CHECKING AGAINST LEFTOVER CARS"
+                    newCarOrNot = False
+
+                    for leftoverCentroid in self.centroidsOutsideOfBbox:
+                        print "leftoverCentroid: ", leftoverCentroid
+                        print "weightedNewCarsCornerCentroid: ", weightedNewCarsCornerCentroid
+                        print "distance to each pt: ", math.hypot(abs(weightedNewCarsCornerCentroid[0] - leftoverCentroid[0]), abs(weightedNewCarsCornerCentroid[1] - leftoverCentroid[1]))
+                        if math.hypot(abs(weightedNewCarsCornerCentroid[0] - leftoverCentroid[0]), abs(weightedNewCarsCornerCentroid[1] - leftoverCentroid[1])) < 70:
+                            print "Point is from a previously detected car"
+                            print "DRAW BLUE RECTANGLE"
+                            cv2.circle(im_copy, weightedNewCarsCornerCentroid, 5, (255,0,0), -1) #blue
+                            cv2.rectangle(im_copy, (newCars[singleNewCarIndex][-1][0][0], newCars[singleNewCarIndex][-1][0][1]), (newCars[singleNewCarIndex][-1][0][2], newCars[singleNewCarIndex][-1][0][3]), (255, 0, 0), 3) #blue
+                            newCarOrNot = True
+                            break
+
+                    if newCarOrNot == False:
+                        print "THIS IS A NEWLY DETECTED CAR. DRAW GREEN RECTANGLE"
+                        aggregatedCars.append(newCars[singleNewCarIndex])
+                        cv2.circle(im_copy, weightedNewCarsCornerCentroid, 5, (0, 255, 0), -1) #green
+                        cv2.rectangle(im_copy, (newCars[singleNewCarIndex][-1][0][0], newCars[singleNewCarIndex][-1][0][1]), (newCars[singleNewCarIndex][-1][0][2], newCars[singleNewCarIndex][-1][0][3]), (0, 255, 0), 3) #green
+                        if str(itemName) == "car":
+                            print "added to totalCarCount"
+                            self.totalCarCount += 1
+                            self.carCountMin += 1
+                        elif str(itemName) == "bus":
+                            print "added to totalBusCount"
+                            self.totalBusCount += 1
+                        else:
+                            print "not added to anything. Itemname is not car or bus"
+                        print "If statement is true. += totalCarCount. Appended size is now: ", len(aggregatedCars)
+
             print "NEXT CAR;;;;;;;;;;;;;;;;;;;;;;;;;;;;"
 
-        if (len(detectedCars)>0 and (frameNum%10>0)):
-            print "adding remaining cars to the end of aggregatedCars"
+        print "len(detectedCars): ", len(detectedCars)
+        print "len(newCars): ", len(newCars)
+        print "checking remaining cars"
+        print "FrameNum%17: ", frameNum%17
+
+        if frameNum%17>0 and len(detectedCars)>0:
+            print "frameNum has remainder. runnning checks on detectedCars"
             for remainingCar in detectedCars:
-                aggregatedCars.append(remainingCar)
-                print "DRAW BLUE RECTANGLE"
-                cv2.circle(im_copy, c.mathArrayCentroid(remainingCar[-1][0]), 5, (255,0,0), -1) #blue
                 cv2.rectangle(im_copy, (remainingCar[-1][0][0], remainingCar[-1][0][1]), (remainingCar[-1][0][2], remainingCar[-1][0][3]), (255, 0, 0), 3) #blue
+
+                print "Checking to see if the remaining cars are from any of the other earlier detected cars"
+
+                if len(self.centroidsOutsideOfBbox) > 0:
+                    newCarOrNot = False
+
+                    for leftoverCentroid in self.centroidsOutsideOfBbox:
+                        print "leftoverCentroid: ", leftoverCentroid
+                        remainingCarCentroid = c.mathArrayCentroid(remainingCar[-1][0])
+                        print "centroid of newCar: ", remainingCarCentroid
+                        print "distance to each pt: ", math.hypot(abs(remainingCarCentroid[0] - leftoverCentroid[0]), abs(remainingCarCentroid[1] - leftoverCentroid[1]))
+                        if math.hypot(abs(remainingCarCentroid[0] - leftoverCentroid[0]), abs(remainingCarCentroid[1] - leftoverCentroid[1])) < 70:
+                            print "Point is from a previously detected car. Not adding to aggregatedCars"
+                            print "DRAW BLUE RECTANGLE"
+                            cv2.circle(im_copy, c.mathArrayCentroid(remainingCar[-1][0]), 5, (255,0,0), -1) #blue
+                            cv2.rectangle(im_copy, (remainingCar[-1][0][0], remainingCar[-1][0][1]), (remainingCar[-1][0][2], remainingCar[-1][0][3]), (255, 0, 0), 3) #blue
+                            newCarOrNot = True
+                            break
+
+                if newCarOrNot == False:
+                    print "This is a previously detetedCar. Adding to aggregatedCars but not +1"
+                    aggregatedCars.append(remainingCar)
+                    cv2.circle(im_copy, c.mathArrayCentroid(remainingCar[-1][0]), 5, (255,0,0), -1) #blue
+                    cv2.rectangle(im_copy, (remainingCar[-1][0][0], remainingCar[-1][0][1]), (remainingCar[-1][0][2], remainingCar[-1][0][3]), (255, 0, 0), 3) #blue
+
+        else:
+            if frameNum%17 == 0 and len(detectedCars)==0:
+                print "FrameNum is resetting and DetectedCars has len 0"
+            elif len(detectedCars)==0:
+                print "FrameNum has remainder. detectedCars has len 0"
+            elif frameNum&17==0:
+                print "FrameNum is resetting. DetectedCars has len +"
 
         print "-----------------------len aggregatedCars: ", len(aggregatedCars)
 
@@ -306,90 +382,110 @@ class UrbanFlows():
         frameNum = 0
         p = path.Path([(0, 362), (741, 229), (1581, 390), (1597, 704), (450, 1017), (0, 785)])
         bboxIntersection = np.array([[0, 362], [741, 229], [1581, 390], [1597, 704], [450, 1017], [0, 785]])
-        carCountFile = open('carCountFile.txt', 'w')
+        # carCountFile = open('carCountFile.txt', 'w')
+
         startTime = time.time()
 
-        try:
-            while (cap.isOpened()):
-                ret, im = cap.read()
-                
-                if ret == True:
-                    frame_gray = cv2.cvtColor(im, cv2.COLOR_BGR2GRAY)
-                    im_copy = im.copy()
-                    cv2.polylines(im_copy, np.int32([bboxIntersection]), False, (0,255,0))
-
-                    if len(detectedCars) <= 0:
-                        detectedCars = c.carDetectionMethod(im, im_copy, frame_gray, net, detectedCars, p)
-                        print "len(detectedCars): ", len(detectedCars)
-                        self.totalCarCount += len(detectedCars)
-                        self.carCountMin += len(detectedCars)
-                    elif len(detectedCars) > 0:
-                        print "detectedcars len: ", len(detectedCars)
-                        newCars = c.carDetectionMethod(im, im_copy, frame_gray, net, detectedCars, p)
-                        print "Updated newCars value: ", len(newCars)
-                        detectedCars = c.thresholding(detectedCars, newCars, im_copy, frameNum, "car")
-
-                    if len(detectedBus) <= 0:
-                        detectedBus = c.busDetectionMethod(im, im_copy, frame_gray, net, detectedBus, p)
-                        print "len(detectedBus): ", len(detectedBus)
-                        self.totalBusCount += len(detectedBus)
-                    elif len(detectedBus) > 0:
-                        print "detectedBus len: ", len(detectedBus)
-                        newBus = c.busDetectionMethod(im, im_copy, frame_gray, net, detectedBus, p)
-                        print "Updated newBus value: ", len(newBus)
-                        detectedBus = c.thresholding(detectedBus, newBus, im_copy, frameNum, "bus")
-                    
-                    c.visualizeTrackedCars(detectedCars, im_copy)
-                    c.visualizeTrackedCars(detectedBus, im_copy)
-
-                    frameNum += 1
-                    print "====================================================FRAMENUM {0}, TOTAL CAR COUNTS {1}. CAR COUNT MIN {2}, TOTAL BUS COUNTS: {3}".format(frameNum, self.totalCarCount, self.carCountMin, self.totalBusCount)
-
-                    if (frameNum%150==0):
-                        print "resetting carCountMin!!!!!"
-                        print "carCountMin: ", self.carCountMin
-                        carCountFile.write('approxTimeSec: {0}\tCarCount: {1}\ttotalCarCount: {2}\ttotalBusCount: {3}\n'.format((frameNum/15), self.carCountMin, self.totalCarCount, self.totalBusCount))
-                        self.carCountMin = 0
-                        print "carCountMin: ", self.carCountMin
-
-                    prev_gray = frame_gray
-
-                    # cv2.imshow('frame', im_copy)
-                    # if cv2.waitKey(0) & 0xFF == ord('q'):
-                    #     break
-
-                    print "take prev_gray frame****************************************************"
-                
-                else:
-                    break
+        # try:
+        while (cap.isOpened()):
+            ret, im = cap.read()
             
-            print "totalCarCount: ", self.totalCarCount
-            print "carCountMin last: ", self.carCountMin
-            carCountFile.write('approxTimeSec: {0}\tCarCount: {1}\tTotalCarCount: {2}\tTotalBusCount: {3}\n'.format((frameNum/15), self.carCountMin, self.totalCarCount, self.totalBusCount))
+            if ret == True:
+                frame_gray = cv2.cvtColor(im, cv2.COLOR_BGR2GRAY)
+                im_copy = im.copy()
+                cv2.putText(im_copy, str(frameNum), (100,100), cv2.FONT_HERSHEY_PLAIN, 2, (0,0,0), 2)
 
-            endTime = time.time()
-            totalCalcTime = endTime -startTime
-            carCountFile.write('TotalFrameNum: {0}\tCarCount: {1}\tTotalCarCount: {2}\tTotalBusCount: {3}\n'.format(frameNum, self.carCountMin, self.totalCarCount, self.totalBusCount))
-            carCountFile.write('totalRunningTime: {0}'.format(totalCalcTime))
-            print "totalRunning Time: ", totalCalcTime
+                cv2.polylines(im_copy, np.int32([bboxIntersection]), False, (0,255,0))
 
-            carCountFile.close()
-            cap.release()
-        except:
-            print "ERRORRRRRRRRRRRRRRRRRRRRRRR"
-            print "totalCarCount: ", self.totalCarCount
-            print "carCountMin last: ", self.carCountMin
-            carCountFile.write('approxTimeSec: {0}\tCarCount: {1}\tTotalCarCount: {2}\tTotalBusCount: {3}\n'.format((frameNum/15), self.carCountMin, self.totalCarCount, self.totalBusCount))
+                if frameNum == 0:
+                    detectedCars = c.carDetectionMethod(im, im_copy, frame_gray, net, detectedCars, p)
+                    self.totalCarCount += len(detectedCars)
+                    self.carCountMin += len(detectedCars)
+                else:
+                    print "main method else statement"
+                    print "detectedcars len: ", len(detectedCars)
+                    newCars = c.carDetectionMethod(im, im_copy, frame_gray, net, detectedCars, p)
+                    print "Updated newCars value: ", len(newCars)
+                    detectedCars = c.thresholding(detectedCars, newCars, im_copy, frameNum, "car")
 
-            endTime = time.time()
-            totalCalcTime = endTime -startTime
-            carCountFile.write('TotalFrameNum: {0}\tCarCount: {1}\tTotalCarCount: {2}\tTotalBusCount: {3}\n'.format(frameNum, self.carCountMin, self.totalCarCount, self.totalBusCount))
-            carCountFile.write('totalRunningTime: {0}'.format(totalCalcTime))
-            print "totalRunning Time: ", totalCalcTime
-            carCountFile.write("error in the file. This may not be the last line")
+                # if len(detectedCars) <= 0:
+                #     print "Len DetectedCars is 0. Just running carDetectionMethod"
+                #     detectedCars = c.carDetectionMethod(im, im_copy, frame_gray, net, detectedCars, p)
+                #     print "len(detectedCars): ", len(detectedCars)
+                #     self.totalCarCount += len(detectedCars)
+                #     self.carCountMin += len(detectedCars)
+                # elif len(detectedCars) > 0:
+                #     print "detectedcars len: ", len(detectedCars)
+                #     newCars = c.carDetectionMethod(im, im_copy, frame_gray, net, detectedCars, p)
+                #     print "Updated newCars value: ", len(newCars)
+                #     detectedCars = c.thresholding(detectedCars, newCars, im_copy, frameNum, "car")
 
-            carCountFile.close()
-            cap.release()
+                if len(detectedBus) <= 0:
+                    detectedBus = c.busDetectionMethod(im, im_copy, frame_gray, net, detectedBus, p)
+                    print "len(detectedBus): ", len(detectedBus)
+                    self.totalBusCount += len(detectedBus)
+                elif len(detectedBus) > 0:
+                    print "detectedBus len: ", len(detectedBus)
+                    newBus = c.busDetectionMethod(im, im_copy, frame_gray, net, detectedBus, p)
+                    print "Updated newBus value: ", len(newBus)
+                    detectedBus = c.thresholding(detectedBus, newBus, im_copy, frameNum, "bus")
+                
+                c.visualizeTrackedCars(detectedCars, im_copy)
+                c.visualizeTrackedCars(detectedBus, im_copy)
+
+                frameNum += 1
+                print "====================================================FRAMENUM {0}, TOTAL CAR COUNTS {1}. CAR COUNT MIN {2}, TOTAL BUS COUNTS: {3}".format(frameNum, self.totalCarCount, self.carCountMin, self.totalBusCount)
+
+                if (frameNum%150==0):
+                    print "resetting carCountMin!!!!!"
+                    print "carCountMin: ", self.carCountMin
+                    # carCountFile.write('approxTimeSec: {0}\tCarCount: {1}\ttotalCarCount: {2}\ttotalBusCount: {3}\n'.format((frameNum/15), self.carCountMin, self.totalCarCount, self.totalBusCount))
+                    self.carCountMin = 0
+                    print "carCountMin: ", self.carCountMin
+
+                prev_gray = frame_gray
+                self.centroidsOutsideOfBbox = []
+                try:
+                    raw_input("Press enter to continue")
+                except SyntaxError:
+                    pass
+
+                # cv2.imshow('frame', im_copy)
+                # if cv2.waitKey(0) & 0xFF == ord('q'):
+                #     break
+
+                print "take prev_gray frame****************************************************"
+            
+            else:
+                break
+        
+        print "totalCarCount: ", self.totalCarCount
+        print "carCountMin last: ", self.carCountMin
+        # carCountFile.write('approxTimeSec: {0}\tCarCount: {1}\tTotalCarCount: {2}\tTotalBusCount: {3}\n'.format((frameNum/15), self.carCountMin, self.totalCarCount, self.totalBusCount))
+
+        endTime = time.time()
+        totalCalcTime = endTime -startTime
+        # carCountFile.write('TotalFrameNum: {0}\tCarCount: {1}\tTotalCarCount: {2}\tTotalBusCount: {3}\n'.format(frameNum, self.carCountMin, self.totalCarCount, self.totalBusCount))
+        # carCountFile.write('totalRunningTime: {0}'.format(totalCalcTime))
+        print "totalRunning Time: ", totalCalcTime
+
+        # carCountFile.close()
+        cap.release()
+        # except:
+        #     print "ERRORRRRRRRRRRRRRRRRRRRRRRR"
+        #     print "totalCarCount: ", self.totalCarCount
+        #     print "carCountMin last: ", self.carCountMin
+        #     carCountFile.write('approxTimeSec: {0}\tCarCount: {1}\tTotalCarCount: {2}\tTotalBusCount: {3}\n'.format((frameNum/15), self.carCountMin, self.totalCarCount, self.totalBusCount))
+
+        #     endTime = time.time()
+        #     totalCalcTime = endTime -startTime
+        #     carCountFile.write('TotalFrameNum: {0}\tCarCount: {1}\tTotalCarCount: {2}\tTotalBusCount: {3}\n'.format(frameNum, self.carCountMin, self.totalCarCount, self.totalBusCount))
+        #     carCountFile.write('totalRunningTime: {0}'.format(totalCalcTime))
+        #     print "totalRunning Time: ", totalCalcTime
+        #     carCountFile.write("error in the file. This may not be the last line")
+
+        #     carCountFile.close()
+            # cap.release()
 
     def parse_args(self):
         """Parse input arguments."""
