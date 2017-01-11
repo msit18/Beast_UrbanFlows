@@ -52,7 +52,7 @@ class DataFactory(Factory):
 		# 								 1020, 1020, 1020, 1020]
 		self.timesToTakeVideo = ["01/11/17 15:21:00", "01/11/17 15:21:10"]
 
-		self.videoTotalTimeSecDuration = [300, 300]
+		self.videoTotalTimeSecDuration = [60, 60]
 
 
 	def buildProtocol(self, addr):
@@ -168,6 +168,8 @@ class DataProtocol (protocol.Protocol):
 		try:
 			fileSize = os.path.getsize("{1}{0}".format(filename, serverSaveFilePath))
 			return "checkFileSizeIsCorrect {0} {1}".format(filename, fileSize)
+		except OSError:
+			print "file does not exist. Skip"
 		except:
 			print "Could not upload to server"
 			return "uploadingError"
@@ -196,7 +198,7 @@ if __name__ == '__main__':
 	ip_address = subprocess.check_output("hostname --all-ip-addresses", shell=True).strip()
 	serverIP = ip_address.split()[0]
 	totalNumRaspies = int(f.numRaspiesInCluster)
-	serverSaveFilePath = "/home/msit/"
+	serverSaveFilePath = "/media/msit/Seagate Backup Plus Drive/Lobby7/" #Leave out dashes. Add dashes for client.
 
 	#TCP network
 	d = defer.Deferred()
