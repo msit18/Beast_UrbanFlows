@@ -50,9 +50,9 @@ class DataFactory(Factory):
 		# 								 1020, 1020, 1020, 1020, \
 		# 								 1020, 1020, 1020, 1020, \
 		# 								 1020, 1020, 1020, 1020]
-		self.timesToTakeVideo = []
+		self.timesToTakeVideo = ["01/11/17 15:21:00", "01/11/17 15:21:10"]
 
-		self.videoTotalTimeSecDuration = []
+		self.videoTotalTimeSecDuration = [300, 300]
 
 
 	def buildProtocol(self, addr):
@@ -87,7 +87,8 @@ class DataProtocol (protocol.Protocol):
 			print "RUNNING CHECKCONNECTIONS"
 			if len(self.factory.ipDictionary) > (totalNumRaspies-1): #Set value to total number of Raspies -1
 				print "verifying Connections with connections"
-				self.verifyConnections()
+				# self.verifyConnections()
+				self.startProgram()
 
 		elif msgFromClient[0] == 'CAMERROR':
 			print "CAM ERROR FROM {1} PICAMERA at {0}".format(time.strftime("%Y-%m-%d-%H:%M:%S"), msgFromClient[1])
@@ -124,7 +125,8 @@ class DataProtocol (protocol.Protocol):
 					while datetime.datetime.today() < newStartTimeConvert:
 						pass
 					else:
-						self.verifyConnections()
+						# self.verifyConnections()
+						self.startProgram()
 				else:
 					print "There are no more times left to take. System has finished."
 			else:
@@ -164,11 +166,11 @@ class DataProtocol (protocol.Protocol):
 
 	def checkFileSize(self, filename):
 		try:
-			fileSize = os.path.getsize("/media/senseable-beast/beast-brain-1/Data/OneWeekData/{0}".format(filename))
+			fileSize = os.path.getsize("{1}{0}".format(filename, serverSaveFilePath))
 			return "checkFileSizeIsCorrect {0} {1}".format(filename, fileSize)
 		except:
 			print "Could not upload to server"
-			return "checkFileSizeIsCorrect uploadingError"
+			return "uploadingError"
 
 #Used for HTTP network.  Receives images and saves them to the server
 class UploadImage(Resource):
@@ -194,6 +196,7 @@ if __name__ == '__main__':
 	ip_address = subprocess.check_output("hostname --all-ip-addresses", shell=True).strip()
 	serverIP = ip_address.split()[0]
 	totalNumRaspies = int(f.numRaspiesInCluster)
+	serverSaveFilePath = "/home/msit/"
 
 	#TCP network
 	d = defer.Deferred()
@@ -208,5 +211,6 @@ if __name__ == '__main__':
 	reactor.listenTCP(8880, factory, 200, serverIP)
 
 	print "SERVER IP IS: ", serverIP
+	print "SERVER SAVEFILEPATH IS: ", serverSaveFilePath
 
 	reactor.run()
