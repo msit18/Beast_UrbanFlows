@@ -50,9 +50,12 @@ class DataFactory(Factory):
 		# 								 1020, 1020, 1020, 1020, \
 		# 								 1020, 1020, 1020, 1020, \
 		# 								 1020, 1020, 1020, 1020]
-		self.timesToTakeVideo = ["01/11/17 15:21:00", "01/11/17 15:21:10"]
+		self.timesToTakeVideo = []
 
-		self.videoTotalTimeSecDuration = [60, 60]
+
+
+		self.videoTotalTimeSecDuration = []
+
 
 
 	def buildProtocol(self, addr):
@@ -198,7 +201,8 @@ if __name__ == '__main__':
 	ip_address = subprocess.check_output("hostname --all-ip-addresses", shell=True).strip()
 	serverIP = ip_address.split()[0]
 	totalNumRaspies = int(f.numRaspiesInCluster)
-	serverSaveFilePath = "/media/msit/Seagate Backup Plus Drive/Lobby7/" #Leave out dashes. Add dashes for client.
+	# serverSaveFilePath = "/media/msit/Seagate Backup Plus Drive/Lobby7/" #Leave out dashes. Add dashes for client.
+	serverSaveFilePath = "/media/senseable-beast/beast-brain-1/Data/OneWeekData/tmp/"
 
 	#TCP network
 	d = defer.Deferred()

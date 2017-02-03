@@ -52,25 +52,27 @@ class MasterVariables():
 		#self.ServerStartTime = time.strftime("%x %X")
 		print "Starting time: ", self.ServerStartTime
 		if self.camVid == "camera":
-			self.ServerTotalTimeSec = raw_input('Enter total run time in seconds: ')
-			self.ServerResW = raw_input('Enter resolution width: ')
-			self.ServerResH = raw_input('Enter resolution height: ')
-			self.ServerNumPics = raw_input ('Enter number of pictures to take (fps): ')
-			self.ServerTimeInterval = raw_input ("Enter time interval (seconds) for frames"\
-			" to be taken in (fps): ")
-			self.ServerFrameRate = raw_input ('Enter framerate: ')
-			print "Thank you for your input. Please check the following"
-			print "{0} | TotalTime(sec): {1} | ResW: {2} | ResH: {3} | NumPics: {4} | "\
-			"TimeInterval(sec): {5} | FR: {6} | StartTime: {7} | NumRaspies: {8}".format(self.camVid, \
-			self.ServerTotalTimeSec, self.ServerResW, self.ServerResH,\
-			self.ServerNumPics, self.ServerTimeInterval, self.ServerFrameRate, self.ServerStartTime, \
-			self.numRaspiesInCluster)
+			print "Sorry this method has been discontinued. Try video"
+			self.userInput()
+			# self.ServerTotalTimeSec = raw_input('Enter total run time in seconds: ')
+			# self.ServerResW = raw_input('Enter resolution width: ')
+			# self.ServerResH = raw_input('Enter resolution height: ')
+			# self.ServerNumPics = raw_input ('Enter number of pictures to take (fps): ')
+			# self.ServerTimeInterval = raw_input ("Enter time interval (seconds) for frames"\
+			# " to be taken in (fps): ")
+			# self.ServerFrameRate = raw_input ('Enter framerate: ')
+			# print "Thank you for your input. Please check the following"
+			# print "{0} | TotalTime(sec): {1} | ResW: {2} | ResH: {3} | NumPics: {4} | "\
+			# "TimeInterval(sec): {5} | FR: {6} | StartTime: {7} | NumRaspies: {8}".format(self.camVid, \
+			# self.ServerTotalTimeSec, self.ServerResW, self.ServerResH,\
+			# self.ServerNumPics, self.ServerTimeInterval, self.ServerFrameRate, self.ServerStartTime, \
+			# self.numRaspiesInCluster)
 
 		elif self.camVid == "video":
 			#self.ServerVidTimeSec = raw_input('Enter individual video time(sec): ')
 			self.ServerResW = raw_input('Enter resolution width: ')
 			self.ServerResH = raw_input('Enter resolution height: ')
-			self.ServerTotalTimeSec = input('Enter total run time in seconds: ')
+			self.ServerTotalTimeSec = input('Enter total run time for all videos in seconds: ')
 			self.ServerFrameRate = raw_input ('Enter framerate: ')
 			print "Thank you for your input. Please check the following"
 			print "{0} | ResW: {1} | ResH: {2} | TotalTime (sec): {3} |"\
@@ -91,5 +93,6 @@ class MasterVariables():
 		if goInput == "yes":
 			print self.getParam()
 			print "Running server now"
+			print "!!! Check that the savepaths for the server and Raspies are the same"
 		elif goInput == "no":
 			self.userInput()
