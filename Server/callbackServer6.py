@@ -126,8 +126,8 @@ if __name__ == '__main__':
 	ip_address = subprocess.check_output("hostname --all-ip-addresses", shell=True).strip()
 	serverIP = ip_address.split()[0]
 	totalNumRaspies = int(f.numRaspiesInCluster)
-	# serverSaveFilePath = "/media/msit/Seagate Backup Plus Drive/Lobby7/" #Leave out dashes. Add dashes for client.
-	serverSaveFilePath = "/media/senseable-beast/beast-brain-1/Data/OneWeekData/tmp/"
+	serverSaveFilePath = "/media/msit/PhilipsData/TrafficIntersection17/" #Leave out dashes. Add dashes for client.
+	#serverSaveFilePath = "/media/senseable-beast/beast-brain-1/Data/OneWeekData/tmp/"
 
 	#TCP network
 	d = defer.Deferred()
