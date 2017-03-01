@@ -27,9 +27,15 @@ class DataFactory(Factory):
 		self.checkCamPi = 0 #running tally of raspies for current process (waiting for initial connections or received all times)
 		self.finished = 0
 
-		# self.timesToTakeVideo = "02/3/17 12:30:00 02/3/17 12:45:00 02/3/17 01:00:00 "\
-		# 						"02/3/17 01:15:00 02/3/17 01:30:00 02/3/17 01:45:00 "
-		self.timesToTakeVideo = ""
+		self.timesToTakeVideo =	"03/01/17 14:00:00 03/01/17 15:00:00 03/01/17 16:00:00 "\
+								"03/01/17 17:00:00 03/01/17 18:00:00 03/01/17 19:00:00 03/01/17 20:00:00 "\
+								"03/01/17 21:00:00 03/01/17 22:00:00 03/01/17 23:00:00 03/02/17 00:00:00 "\
+								"03/02/17 06:00:00 03/02/17 07:00:00 03/02/17 08:00:00 03/02/17 09:00:00 "\
+								"03/02/17 10:00:00 03/02/17 11:00:00 "
+
+		# self.timesToTakeVideo = ""
+
+
 		# self.videoTotalTimeSecDuration = 10
 
 	def buildProtocol(self, addr):
